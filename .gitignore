@@ -1,0 +1,5 @@
+# add virtual environment
+venv/
+
+# add database
+messages.db

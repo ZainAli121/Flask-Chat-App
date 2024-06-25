@@ -1,0 +1,37 @@
+{% extends 'index.html' %}
+
+{% block content %}
+<div class="chat-container">
+    <h2>Send Message</h2>
+    <input type="text" id="customer_id" placeholder="Customer ID"><br>
+    <input type="text" id="customer_name" placeholder="Customer Name"><br>
+    <textarea id="customer_message" placeholder="Enter your message"></textarea><br>
+    <button onclick="sendMessage()">Send</button>
+</div>
+
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+<script>
+    const socket = io();
+
+    function sendMessage() {
+        const customer_id = document.getElementById('customer_id').value;
+        const customer_name = document.getElementById('customer_name').value;
+        const customer_message = document.getElementById('customer_message').value;
+
+        fetch('/send_message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                customer_id: customer_id,
+                customer_name: customer_name,
+                customer_message: customer_message,
+            }),
+        });
+
+        // Clear input fields after sending message
+        document.getElementById('customer_message').value = '';
+    }
+</script>
+{% endblock %}
