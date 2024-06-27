@@ -10,47 +10,52 @@ DATABASE = 'messages.db'
 def init_db():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
+    # Create the messages table if it doesn't exist
     cursor.execute('''CREATE TABLE IF NOT EXISTS messages (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         customer_id TEXT,
                         customer_name TEXT,
                         customer_message TEXT
                     )''')
+    
+    # Check if the 'direction' column exists
+    cursor.execute("PRAGMA table_info(messages)")
+    columns = [column[1] for column in cursor.fetchall()]
+    
+    if 'direction' not in columns:
+        # Add the 'direction' column if it doesn't exist
+        cursor.execute("ALTER TABLE messages ADD COLUMN direction TEXT")
+    
     conn.commit()
     conn.close()
 
 @app.route('/')
 def index():
+    # delete all messages
+    # conn = sqlite3.connect(DATABASE)
+    # cursor = conn.cursor()
+    # cursor.execute('DELETE FROM messages')
+    # conn.commit()
+    # conn.close()
     return render_template('index.html')
 
 @app.route('/send_message')
 def send_message_page():
     return render_template('send_message.html')
 
-
-
 @app.route('/customers')
 def customer_page():
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
-    cursor.execute('SELECT DISTINCT customer_id, customer_name FROM messages')
-    customers = cursor.fetchall()
-    conn.close()
-    return render_template('messages.html', customers=customers)
-
-
+    return render_template('messages.html')
 
 @app.route('/customers_list')
 def customers():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
-    cursor.execute('SELECT DISTINCT customer_id, customer_name FROM messages')
+    cursor.execute('SELECT DISTINCT customer_id, customer_name FROM messages WHERE customer_name != "Server"')
     customers = cursor.fetchall()
     conn.close()
+    print(customers)
     return jsonify(customers)
-
-
-
 
 @app.route('/messages')
 def messages():
@@ -70,17 +75,14 @@ def messages():
             'id': message[0],
             'customer_id': message[1],
             'customer_name': message[2],
-            'customer_message': message[3]
+            'customer_message': message[3],
+            'direction': message[4]
         })
-    print(messages_list)
     
     return jsonify(messages_list)
 
-
-
-
-@app.route('/send_message', methods=['POST'])
-def send_message():
+@app.route('/receive_message', methods=['POST'])
+def receive_message():
     data = request.json
     customer_id = data['customer_id']
     customer_name = data['customer_name']
@@ -91,26 +93,45 @@ def send_message():
 
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
-    cursor.execute('INSERT INTO messages (customer_id, customer_name, customer_message) VALUES (?, ?, ?)',
-                   (customer_id, customer_name, customer_message))
+    cursor.execute('INSERT INTO messages (customer_id, customer_name, customer_message, direction) VALUES (?, ?, ?, ?)',
+                   (customer_id, customer_name, customer_message, 'received'))
+    conn.commit()
+    conn.close()
+    print('Message received')
+    socketio.emit('new_message', {
+        'customer_id': customer_id,
+        'customer_name': customer_name,
+        'customer_message': customer_message,
+        'direction': 'received'
+    })
+
+    return jsonify({'status': 'Message received'}), 200
+
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    data = request.json
+    customer_id = data['customer_id']
+    customer_name = data['customer_name']
+    customer_message = data['customer_message']
+
+    if not (customer_id and customer_message):
+        return jsonify({'error': 'Invalid data'}), 400
+
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO messages (customer_id, customer_name, customer_message, direction) VALUES (?, ?, ?, ?)',
+                   (customer_id, "Server", customer_message, 'sent'))  # Leave customer_name empty for server messages
     conn.commit()
     conn.close()
 
     socketio.emit('new_message', {
         'customer_id': customer_id,
-        'customer_name': customer_name,
-        'customer_message': customer_message
+        'customer_name': "Server",  # Send 'Server' as the name in the emit message
+        'customer_message': customer_message,
+        'direction': 'sent'
     })
 
-    return jsonify({'status': 'Message received'}), 200
-
-
-
-
-
-
-
-
+    return jsonify({'status': 'Message sent'}), 200
 
 
 

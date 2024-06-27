@@ -18,7 +18,7 @@
         const customer_name = document.getElementById('customer_name').value;
         const customer_message = document.getElementById('customer_message').value;
 
-        fetch('/send_message', {
+        fetch('/receive_message', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
