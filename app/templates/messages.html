@@ -1,99 +1,203 @@
-{% extends 'index.html' %}
-
-{% block content %}
-<div class="container">
-    <h2>All Messages</h2>
-    <div class="message-container">
-        {% for message in messages %}
-        <div class="message-card">
-            <div class="message-card-header">
-                <h5>User ID: {{ message.customer_id }}</h5>
-                <h6>User Name: {{ message.customer_name }}</h6>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat Application</title>
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #2b6cb0;
+        }
+        .sidebar {
+            width: 25%;
+            background-color: #2d3748;
+            overflow-y: auto;
+            border-right: 1px solid #ccc;
+            padding-top: 10px;
+        }
+        .sidebar .customer {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #4a5568;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+        }
+        .sidebar .customer:hover {
+            background-color: #4a5568;
+        }
+        .sidebar .customer img {
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #edf2f7;
+        }
+        .chat .header {
+            background-color: #2d3748;
+            color: white;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .chat .header img {
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .chat .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .chat .messages .message {
+            background-color: #e2e8f0;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            max-width: 60%;
+        }
+        .chat .messages .message.sent {
+            align-self: flex-end;
+            background-color: #bee3f8;
+        }
+        .chat .messages .message.received {
+            align-self: flex-start;
+            background-color: #bee3f8;
+        }
+        .chat .input {
+            display: flex;
+            border-top: 1px solid #ccc;
+        }
+        .chat .input input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            outline: none;
+        }
+        .chat .input button {
+            padding: 10px;
+            border: none;
+            background-color: #4a90e2;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar" id="customerList"></div>
+    <div class="chat">
+        <div class="header">
+            <div class="customer-info">
+                <img src="https://via.placeholder.com/40" alt="Customer Avatar" id="customerAvatar">
+                <span id="customerName"></span>
             </div>
-            <div class="message-card-body">
-                <p>{{ message.customer_message }}</p>
-            </div>
+            <button id="closeButton">Close</button>
         </div>
-        {% endfor %}
+        <div class="messages" id="messageList"></div>
+        <div class="input">
+            <input type="text" id="messageInput" placeholder="Type something...">
+            <button id="sendButton">Send</button>
+        </div>
     </div>
-</div>
 
-<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
-<script>
-    const socket = io();
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        var socket = io();
+        var selectedCustomerId = null;
 
-    socket.on('connect', function() {
-        console.log('Connected to server');
-    });
+        function loadCustomers() {
+            fetch('/customers_list')
+                .then(response => response.json())
+                .then(customers => {
+                    const customerList = document.getElementById('customerList');
+                    customerList.innerHTML = '';
+                    customers.forEach(customer => {
+                        const customerDiv = document.createElement('div');
+                        customerDiv.className = 'customer';
+                        customerDiv.innerHTML = `<img src="https://via.placeholder.com/40" alt="Customer Avatar">${customer[1]}`;
+                        customerDiv.dataset.customerId = customer[0];
+                        customerDiv.addEventListener('click', () => {
+                            selectedCustomerId = customer[0];
+                            document.getElementById('customerName').textContent = customer[1];
+                            document.getElementById('customerAvatar').src = "https://via.placeholder.com/40";
+                            loadMessages(customer[0]);
+                        });
+                        customerList.appendChild(customerDiv);
+                    });
+                });
+        }
 
-    socket.on('disconnect', function() {
-        console.log('Disconnected from server');
-    });
+        function loadMessages(customerId) {
+            fetch(`/messages?customer_id=${customerId}`)
+                .then(response => response.json())
+                .then(messages => {
+                    const messageList = document.getElementById('messageList');
+                    messageList.innerHTML = '';
+                    messages.forEach(message => {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = 'message received';
+                        messageDiv.textContent = `${message.customer_name}: ${message.customer_message}`;
+                        messageList.appendChild(messageDiv);
+                    });
+                });
+        }
 
-    // Function to display a message
-    function displayMessage(data) {
-        const messageContainer = document.querySelector('.message-container');
-        const messageCard = document.createElement('div');
-        messageCard.className = 'message-card';
-        messageCard.innerHTML = `
-            <div class="message-card-header">
-                <h5>User ID: ${data.customer_id}</h5>
-                <h6>User Name: ${data.customer_name}</h6>
-            </div>
-            <div class="message-card-body">
-                <p>${data.customer_message}</p>
-            </div>`;
-        messageContainer.appendChild(messageCard);
-    }
+        document.getElementById('sendButton').addEventListener('click', () => {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value;
+            if (message && selectedCustomerId) {
+                const customerName = document.querySelector(`[data-customer-id="${selectedCustomerId}"]`).textContent;
+                const data = {
+                    customer_id: selectedCustomerId,
+                    customer_name: customerName,
+                    customer_message: message
+                };
 
-    // Socket.io event listener for new_message
-    socket.on('new_message', function(data) {
-        displayMessage(data);
-    });
-</script>
+                // fetch('/send_message', {
+                //     method: 'POST',
+                //     headers: {
+                //         'Content-Type': 'application/json'
+                //     },
+                //     body: JSON.stringify(data)
+                // })
+                // .then(response => response.json())
+                // .then(result => {
+                //     if (result.status === 'Message received') {
+                //         messageInput.value = '';
+                //         const messageList = document.getElementById('messageList');
+                //         const messageDiv = document.createElement('div');
+                //         messageDiv.className = 'message sent';
+                //         messageDiv.textContent = `You: ${message}`;
+                //         messageList.appendChild(messageDiv);
+                //     }
+                // });
+            }
+        });
 
-<style>
-    .container {
-        max-width: 8000px;
-        margin: 0 auto;
-        padding: 20px;
-    }
+        socket.on('new_message', (message) => {
+            if (message.customer_id === selectedCustomerId) {
+                const messageList = document.getElementById('messageList');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message received';
+                messageDiv.textContent = `${message.customer_name}: ${message.customer_message}`;
+                messageList.appendChild(messageDiv);
+            }
+        });
 
-    .message-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 20px;
-    }
+        document.getElementById('closeButton').addEventListener('click', () => {
+            selectedCustomerId = null;
+            document.getElementById('customerName').textContent = '';
+            document.getElementById('customerAvatar').src = "https://via.placeholder.com/40";
+            document.getElementById('messageList').innerHTML = '';
+        });
 
-    .message-card {
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        overflow: hidden;
-        box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-        width: calc(33.33% - 20px); /* Adjust width as needed for responsiveness */
-        background-color: #fff;
-    }
-
-    .message-card-header {
-        background-color: #f0f0f0;
-        padding: 10px;
-        border-bottom: 1px solid #ddd;
-        font-weight: bold;
-        font-size: 1.7em;
-    }
-
-    .message-card-body {
-        padding: 10px;
-        font-size: larger;
-    }
-
-    .message-card-header h5,
-    .message-card-header h6 {
-        margin: 5px 0;
-    }
-
-    .message-card-body p {
-        margin: 0;
-    }
-</style>
-{% endblock %}
+        loadCustomers();
+    </script>
+</body>
+</html>

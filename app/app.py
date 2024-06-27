@@ -27,11 +27,40 @@ def index():
 def send_message_page():
     return render_template('send_message.html')
 
-@app.route('/messages')
-def messages():
+
+
+@app.route('/customers')
+def customer_page():
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM messages')
+    cursor.execute('SELECT DISTINCT customer_id, customer_name FROM messages')
+    customers = cursor.fetchall()
+    conn.close()
+    return render_template('messages.html', customers=customers)
+
+
+
+@app.route('/customers_list')
+def customers():
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT DISTINCT customer_id, customer_name FROM messages')
+    customers = cursor.fetchall()
+    conn.close()
+    return jsonify(customers)
+
+
+
+
+@app.route('/messages')
+def messages():
+    customer_id = request.args.get('customer_id')
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    if customer_id:
+        cursor.execute('SELECT * FROM messages WHERE customer_id = ?', (customer_id,))
+    else:
+        cursor.execute('SELECT * FROM messages')
     messages = cursor.fetchall()
     conn.close()
 
@@ -43,8 +72,12 @@ def messages():
             'customer_name': message[2],
             'customer_message': message[3]
         })
+    print(messages_list)
     
-    return render_template('messages.html', messages=messages_list)
+    return jsonify(messages_list)
+
+
+
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
@@ -70,6 +103,16 @@ def send_message():
     })
 
     return jsonify({'status': 'Message received'}), 200
+
+
+
+
+
+
+
+
+
+
 
 @socketio.on('connect')
 def handle_connect():
