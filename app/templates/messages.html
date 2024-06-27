@@ -63,6 +63,8 @@
             flex: 1;
             overflow-y: auto;
             padding: 20px;
+            display: flex;
+            flex-direction: column;
         }
 
         .chat .messages .message {
@@ -71,6 +73,7 @@
             border-radius: 10px;
             margin-bottom: 10px;
             max-width: 60%;
+            white-space: pre-wrap; /* To ensure new lines are rendered */
         }
 
         .chat .messages .message.sent {
@@ -88,16 +91,20 @@
             border-top: 1px solid #ccc;
         }
 
-        .chat .input input {
+        .chat .input textarea {
             flex: 1;
-            padding: 10px;
+            padding: 20px;
             border: none;
             outline: none;
+            font-size: x-large;
+            resize: none; /* Optional: to prevent resizing */
         }
 
         .chat .input button {
             padding: 10px;
             border: none;
+            width: 100px;
+            font-size: x-large;
             background-color: #4a90e2;
             color: white;
             cursor: pointer;
@@ -109,7 +116,7 @@
     <div class="sidebar" id="customerList"></div>
     <div class="chat">
         <div class="header">
-            <div class="customer-info">
+            <div class="customer-info" id="customerInfo">
                 <img src="https://via.placeholder.com/40" alt="Customer Avatar" id="customerAvatar">
                 <span id="customerName"></span>
             </div>
@@ -117,7 +124,7 @@
         </div>
         <div class="messages" id="messageList"></div>
         <div class="input">
-            <input type="text" id="messageInput" placeholder="Type something...">
+            <textarea id="messageInput" placeholder="Type something..."></textarea>
             <button id="sendButton">Send</button>
         </div>
     </div>
@@ -140,6 +147,7 @@
                         customerDiv.dataset.customerId = customer[0];
                         customerDiv.addEventListener('click', () => {
                             selectedCustomerId = customer[0];
+                            document.getElementById('customerInfo').style.display = 'flex';
                             document.getElementById('customerName').textContent = customer[1];
                             document.getElementById('customerAvatar').src = "https://via.placeholder.com/40";
                             loadMessages(customer[0]);
@@ -164,14 +172,19 @@
                 });
         }
 
+        document.getElementById('sendButton').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault(); // Prevent the default action of adding a newline
+                sendMessage();
+            }
+        });
 
-
-        document.getElementById('sendButton').addEventListener('click', () => {
+        function sendMessage() {
             const messageInput = document.getElementById('messageInput');
             const message = messageInput.value;
             if (message && selectedCustomerId) {
                 const customerName = document.querySelector(`[data-customer-id="${selectedCustomerId}"]`).textContent;
-                console.log(customerName);
                 const data = {
                     customer_id: selectedCustomerId,
                     customer_name: customerName,
@@ -185,19 +198,19 @@
                     },
                     body: JSON.stringify(data)
                 })
-                    .then(response => response.json())
-                    .then(result => {
-                        if (result.status === 'Message sent') {
-                            messageInput.value = '';
-                            const messageList = document.getElementById('messageList');
-                            const messageDiv = document.createElement('div');
-                            messageDiv.className = 'message sent';
-                            messageDiv.textContent = `Server: ${message}`;
-                            // messageList.appendChild(messageDiv);
-                        }
-                    });
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status === 'Message sent') {
+                        messageInput.value = '';
+                        const messageList = document.getElementById('messageList');
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = 'message sent';
+                        messageDiv.textContent = `Server: ${message}`;
+                        // messageList.appendChild(messageDiv);
+                    }
+                });
             }
-        });
+        }
 
         socket.on('new_message', (message) => {
             if (message.customer_name !== 'Server') {
@@ -212,12 +225,12 @@
             }
         });
 
-
         document.getElementById('closeButton').addEventListener('click', () => {
             selectedCustomerId = null;
             document.getElementById('customerName').textContent = '';
             document.getElementById('customerAvatar').src = "https://via.placeholder.com/40";
             document.getElementById('messageList').innerHTML = '';
+            document.getElementById('customerInfo').style.display = 'none'; // Hide customer info
         });
 
         loadCustomers();
