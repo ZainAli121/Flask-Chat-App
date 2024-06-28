@@ -9,15 +9,19 @@
             height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
-            background-color: #2b6cb0;
+            background-color: #414f66;
+            overflow: hidden;
         }
 
         .sidebar {
             width: 25%;
+            max-width: 300px;
             background-color: #2d3748;
             overflow-y: auto;
-            border-right: 1px solid #ccc;
             padding-top: 10px;
+            flex-shrink: 0;
+            z-index: 1; 
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); 
         }
 
         .sidebar .customer {
@@ -27,6 +31,7 @@
             color: #e2e8f0;
             display: flex;
             align-items: center;
+            border: none;
         }
 
         .sidebar .customer:hover {
@@ -43,6 +48,12 @@
             display: flex;
             flex-direction: column;
             background-color: #edf2f7;
+            overflow: hidden;
+            display: none;
+        }
+
+        .chat.active {
+            display: flex;
         }
 
         .chat .header {
@@ -52,6 +63,11 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+        }
+
+        #customerName {
+            color: white;
+            margin-top: 13px;
         }
 
         .chat .header img {
@@ -65,20 +81,24 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
+            box-sizing: border-box;
         }
 
         .chat .messages .message {
+            display: inline-block;
             background-color: #e2e8f0;
             padding: 10px;
             border-radius: 10px;
             margin-bottom: 10px;
-            max-width: 60%;
-            white-space: pre-wrap; /* To ensure new lines are rendered */
+            max-width: 70%;
+            word-wrap: break-word;
+            white-space: pre-wrap;
         }
 
         .chat .messages .message.sent {
             align-self: flex-end;
             background-color: #cef64b;
+            max-width: 75%;
         }
 
         .chat .messages .message.received {
@@ -89,32 +109,116 @@
         .chat .input {
             display: flex;
             border-top: 1px solid #ccc;
+            padding: 10px;
+            box-sizing: border-box;
         }
 
         .chat .input textarea {
             flex: 1;
-            padding: 20px;
+            padding: 10px;
             border: none;
             outline: none;
-            font-size: x-large;
-            resize: none; /* Optional: to prevent resizing */
+            font-size: large;
+            resize: none;
         }
 
         .chat .input button {
             padding: 10px;
             border: none;
             width: 100px;
-            font-size: x-large;
+            font-size: large;
             background-color: #4a90e2;
             color: white;
             cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .chat.hidden .input {
+            display: none;
+        }
+
+        #closeButton, #sendButton{
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            font-size: large;
+            border-radius: 0.5rem;
+        }
+
+        .placeholder {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: white;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            font-size: 2.5rem;
+            font-style: italic;
+            font-family: Georgia, 'Times New Roman', Times, serif;
+        }
+
+        .placeholder .particle {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            animation: float 10s ease-in-out infinite;
+        }
+
+        .particle1 {
+            width: 10px;
+            height: 10px;
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+            animation-duration: 12s;
+        }
+
+        .particle2 {
+            width: 15px;
+            height: 15px;
+            top: 50%;
+            left: 70%;
+            animation-delay: 2s;
+            animation-duration: 15s;
+        }
+
+        .particle3 {
+            width: 20px;
+            height: 20px;
+            top: 80%;
+            left: 30%;
+            animation-delay: 4s;
+            animation-duration: 18s;
+        }
+
+        .particle4 {
+            width: 25px;
+            height: 25px;
+            top: 40%;
+            left: 40%;
+            animation-delay: 1s;
+            animation-duration: 20s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) translateX(0) scale(1);
+            }
+            50% {
+                transform: translateY(-30px) translateX(20px) scale(1.1);
+            }
         }
     </style>
 </head>
 
 <body>
     <div class="sidebar" id="customerList"></div>
-    <div class="chat">
+    <div class="chat hidden" id="chat">
         <div class="header">
             <div class="customer-info" id="customerInfo">
                 <img src="https://via.placeholder.com/40" alt="Customer Avatar" id="customerAvatar">
@@ -127,6 +231,13 @@
             <textarea id="messageInput" placeholder="Type something..."></textarea>
             <button id="sendButton">Send</button>
         </div>
+    </div>
+    <div class="placeholder" id="placeholder">
+        <div class="particle particle1"></div>
+        <div class="particle particle2"></div>
+        <div class="particle particle3"></div>
+        <div class="particle particle4"></div>
+        Welcome to the Chat Application! Please select a customer to start chatting.
     </div>
 
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
@@ -150,6 +261,9 @@
                             document.getElementById('customerInfo').style.display = 'flex';
                             document.getElementById('customerName').textContent = customer[1];
                             document.getElementById('customerAvatar').src = "https://via.placeholder.com/40";
+                            document.getElementById('chat').classList.add('active');
+                            document.getElementById('chat').classList.remove('hidden');
+                            document.getElementById('placeholder').style.display = 'none';
                             loadMessages(customer[0]);
                         });
                         customerList.appendChild(customerDiv);
@@ -173,9 +287,9 @@
         }
 
         document.getElementById('sendButton').addEventListener('click', sendMessage);
-        document.getElementById('messageInput').addEventListener('keydown', function(event) {
+        document.getElementById('messageInput').addEventListener('keydown', function (event) {
             if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault(); // Prevent the default action of adding a newline
+                event.preventDefault();
                 sendMessage();
             }
         });
@@ -198,17 +312,16 @@
                     },
                     body: JSON.stringify(data)
                 })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.status === 'Message sent') {
-                        messageInput.value = '';
-                        const messageList = document.getElementById('messageList');
-                        const messageDiv = document.createElement('div');
-                        messageDiv.className = 'message sent';
-                        messageDiv.textContent = `Server: ${message}`;
-                        // messageList.appendChild(messageDiv);
-                    }
-                });
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.status === 'Message sent') {
+                            messageInput.value = '';
+                            const messageList = document.getElementById('messageList');
+                            const messageDiv = document.createElement('div');
+                            messageDiv.className = 'message sent';
+                            messageDiv.textContent = `Server: ${message}`;
+                        }
+                    });
             }
         }
 
@@ -230,7 +343,10 @@
             document.getElementById('customerName').textContent = '';
             document.getElementById('customerAvatar').src = "https://via.placeholder.com/40";
             document.getElementById('messageList').innerHTML = '';
-            document.getElementById('customerInfo').style.display = 'none'; // Hide customer info
+            document.getElementById('customerInfo').style.display = 'none';
+            document.getElementById('chat').classList.add('hidden');
+            document.getElementById('chat').classList.remove('active');
+            document.getElementById('placeholder').style.display = 'flex';
         });
 
         loadCustomers();

@@ -31,12 +31,6 @@ def init_db():
 
 @app.route('/')
 def index():
-    # delete all messages
-    # conn = sqlite3.connect(DATABASE)
-    # cursor = conn.cursor()
-    # cursor.execute('DELETE FROM messages')
-    # conn.commit()
-    # conn.close()
     return render_template('index.html')
 
 @app.route('/send_message')
